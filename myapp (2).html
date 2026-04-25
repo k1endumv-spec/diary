@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Дневник</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  background: #f0ede8;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* ========== DESKTOP ========== */
+@media (min-width: 600px) {
+  body { display: flex; align-items: center; justify-content: center; padding: 20px; }
+  .app { display: flex; width: 820px; max-width: 100%; height: 600px; background: #fff; border-radius: 18px; overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,0.12); border: 1px solid #e0ddd8; }
+  .sidebar { width: 190px; background: #f7f5f1; border-right: 1px solid #e8e5e0; display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
+  .bottom-nav { display: none; }
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+  .content { flex: 1; overflow-y: auto; padding: 18px 20px; }
+  .topbar { padding: 16px 20px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+}
+
+/* ========== MOBILE ========== */
+@media (max-width: 599px) {
+  body { display: block; background: #f0ede8; }
+  .app { display: flex; flex-direction: column; width: 100%; min-height: 100vh; min-height: 100dvh; background: #fff; }
+  .sidebar { display: none; }
+  .bottom-nav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: rgba(247,245,241,0.97);
+    border-top: 1px solid #e8e5e0;
+    display: flex;
+    padding-bottom: env(safe-area-inset-bottom);
+    z-index: 50;
+  }
+  .main { flex: 1; display: flex; flex-direction: column; padding-bottom: 58px; }
+  .content { flex: 1; overflow-y: auto; padding: 16px 16px; -webkit-overflow-scrolling: touch; }
+  .topbar { padding: 16px 16px 12px; border-bottom: 1px solid #eee; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+}
+
+/* Bottom nav buttons */
+.bnav-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 8px 2px 6px;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+}
+.bnav-icon { font-size: 20px; line-height: 1; }
+.bnav-label { font-size: 9px; color: #bbb; font-weight: 500; }
+.bnav-btn.active .bnav-label { color: #c4a96a; }
+.bnav-btn.active .bnav-icon { transform: scale(1.1); }
+
+/* Sidebar items */
+.sidebar-logo { padding: 20px 16px 12px; font-size: 15px; font-weight: 700; color: #222; }
+.sidebar-section { padding: 4px 10px 2px; font-size: 10px; font-weight: 600; color: #bbb; letter-spacing: 0.07em; text-transform: uppercase; margin-top: 8px; }
+.nav { padding: 2px 8px; font-size: 14px; color: #666; cursor: pointer; border-radius: 8px; margin: 1px 4px; display: flex; align-items: center; gap: 8px; height: 34px; }
+.nav:hover { background: #eeebe5; color: #222; }
+.nav.active { background: #fff; color: #111; font-weight: 500; box-shadow: 0 1px 4px rgba(0,0,0,0.07); }
+.nav-icon { font-size: 15px; width: 20px; text-align: center; }
+.nav-badge { margin-left: auto; background: #e8e5df; color: #999; font-size: 11px; padding: 1px 6px; border-radius: 10px; }
+.sidebar-div { height: 1px; background: #e8e5e0; margin: 8px 12px; }
+
+/* Topbar */
+.topbar-title { font-size: 17px; font-weight: 600; flex: 1; }
+
+/* Sections */
+.sec { display: none; }
+.sec.active { display: block; }
+
+/* Buttons */
+.btn { padding: 7px 14px; border: 1px solid #ddd; border-radius: 8px; background: #fff; font-size: 13px; color: #333; cursor: pointer; font-family: inherit; white-space: nowrap; }
+.btn:hover { background: #f5f5f5; }
+.btn:active { background: #eee; }
+.btn-dark { background: #1a1a1a; color: #fff; border-color: transparent; }
+.btn-dark:hover { background: #333; }
+.btn-dark:active { background: #000; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 7px; }
+.btn-red { border-color: #e06b6b; color: #e06b6b; background: #fff; }
+.btn-red:hover { background: #fff0f0; }
+
+/* Inputs */
+input[type=text], input[type=date], textarea {
+  border: 1px solid #e5e5e5; border-radius: 8px; padding: 9px 12px;
+  font-size: 14px; font-family: inherit; color: #222; background: #fafafa; outline: none; width: 100%;
+  -webkit-appearance: none;
+}
+input[type=text]:focus, input[type=date]:focus, textarea:focus { border-color: #ccc; background: #fff; }
+textarea { resize: vertical; line-height: 1.65; }
+::placeholder { color: #ccc; }
+
+/* ---- DAILY ---- */
+.daily-nav-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+.arr-btn { width: 36px; height: 36px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fff; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #666; flex-shrink: 0; }
+.arr-btn:active { background: #eee; }
+.arr-btn:disabled { opacity: 0.25; cursor: default; }
+.daily-lbl { flex: 1; text-align: center; font-size: 13px; color: #999; }
+.daily-date { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 2px; }
+.daily-wd { font-size: 13px; color: #999; margin-bottom: 14px; }
+.saved-lbl { font-size: 12px; color: #bbb; text-align: right; margin-top: 6px; height: 16px; }
+
+/* ---- MOOD ---- */
+.mood-grid { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 14px; }
+.mood-btn { width: 62px; height: 62px; border: 1.5px solid #e8e8e8; border-radius: 12px; background: #fafafa; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 22px; -webkit-appearance: none; }
+.mood-btn span { font-size: 10px; color: #aaa; font-family: inherit; }
+.mood-btn:active { background: #efefef; }
+.mood-btn.sel { border-color: #c4a96a; background: rgba(196,169,106,0.08); }
+.mood-cal { display: grid; grid-template-columns: repeat(14,1fr); gap: 3px; margin-bottom: 14px; }
+.mc { width: 100%; aspect-ratio: 1; border-radius: 5px; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+.mood-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.mood-row:last-child { border-bottom: none; }
+
+/* ---- HABITS ---- */
+.habit-row { display: flex; align-items: center; gap: 12px; padding: 11px 14px; background: #fafafa; border: 1px solid #eee; border-radius: 10px; margin-bottom: 7px; }
+.hcheck { width: 24px; height: 24px; border: 1.5px solid #ddd; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.hcheck.done { background: #6bcb8b; border-color: #6bcb8b; color: #fff; }
+.hicon { font-size: 20px; flex-shrink: 0; }
+.hinfo { flex: 1; min-width: 0; }
+.hname { font-size: 14px; font-weight: 500; }
+.hname.done { text-decoration: line-through; color: #bbb; }
+.hstreak { font-size: 12px; color: #aaa; margin-top: 2px; }
+.hdots { display: inline-flex; gap: 2px; vertical-align: middle; }
+.hdot { width: 8px; height: 8px; border-radius: 2px; background: #eee; display: inline-block; }
+.hdot.done { background: #6bcb8b; }
+.hdel { font-size: 20px; color: #ddd; cursor: pointer; padding: 4px 6px; flex-shrink: 0; }
+.hdel:active { color: #e06b6b; }
+.icon-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.ipick { width: 40px; height: 40px; border: 1px solid #e5e5e5; border-radius: 8px; background: #fafafa; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+.ipick:active { background: #eee; }
+.ipick.sel { border-color: #c4a96a; background: rgba(196,169,106,0.1); }
+.add-form { background: #fafafa; border: 1px solid #e5e5e5; border-radius: 12px; padding: 14px; margin-top: 10px; }
+
+/* ---- GOALS ---- */
+.goal-card { background: #fafafa; border: 1px solid #eee; border-radius: 12px; padding: 14px; margin-bottom: 9px; cursor: pointer; }
+.goal-card:active { border-color: #ddd; }
+.goal-hdr { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+.gicon { font-size: 24px; flex-shrink: 0; }
+.gtitle { font-size: 15px; font-weight: 600; }
+.gdeadline { font-size: 12px; color: #aaa; margin-top: 2px; }
+.gpbar { height: 4px; background: #eee; border-radius: 3px; margin-bottom: 5px; }
+.gpfill { height: 100%; background: #c4a96a; border-radius: 3px; transition: width 0.3s; }
+.gplabel { font-size: 12px; color: #aaa; }
+
+/* ---- LISTS ---- */
+.list-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 599px) { .list-grid { grid-template-columns: 1fr; } }
+.lcard { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 14px; cursor: pointer; }
+.lcard:active { border-color: #ddd; }
+.lcard-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.lcard-meta { font-size: 12px; color: #aaa; }
+.lcard-preview { font-size: 12px; color: #888; margin-top: 6px; line-height: 1.5; }
+.todo-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f5f5f5; }
+.todo-row:last-child { border-bottom: none; }
+.tcb { width: 22px; height: 22px; border: 1.5px solid #ddd; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; margin-top: 1px; }
+.tcb.done { background: #c4a96a; border-color: #c4a96a; color: #fff; }
+.ttxt { font-size: 15px; flex: 1; outline: none; border: none; background: transparent; font-family: inherit; line-height: 1.5; padding: 0; color: #222; }
+.ttxt.done { text-decoration: line-through; color: #bbb; }
+.tdel { font-size: 20px; color: #ddd; cursor: pointer; padding: 0 4px; flex-shrink: 0; line-height: 1; }
+.tdel:active { color: #e06b6b; }
+.progbar { height: 3px; background: #eee; border-radius: 2px; margin-top: 14px; }
+.progfill { height: 100%; background: #c4a96a; border-radius: 2px; transition: width 0.3s; }
+.proglbl { font-size: 12px; color: #aaa; margin-top: 4px; }
+
+/* ---- NOTES ---- */
+.note-item { background: #fafafa; border: 1px solid #eee; border-radius: 10px; padding: 14px; margin-bottom: 8px; cursor: pointer; }
+.note-item:active { border-color: #ddd; }
+.ni-title { font-size: 14px; font-weight: 600; margin-bottom: 3px; }
+.ni-preview { font-size: 13px; color: #888; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ni-date { font-size: 11px; color: #bbb; margin-top: 4px; }
+
+/* Overlay */
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 200; padding: 20px; }
+.overlay.open { display: flex; }
+.panel { background: #fff; border-radius: 16px; width: 100%; max-width: 480px; max-height: 85vh; overflow-y: auto; padding: 22px; box-shadow: 0 8px 40px rgba(0,0,0,0.2); -webkit-overflow-scrolling: touch; }
+.panel-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+.panel-title-inp { font-size: 17px; font-weight: 600; flex: 1; min-width: 100px; background: transparent; border: none; outline: none; font-family: inherit; color: #111; padding: 0; border-radius: 0; -webkit-appearance: none; }
+.step-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+.step-row:last-child { border-bottom: none; }
+.scheck { width: 20px; height: 20px; border: 1.5px solid #ddd; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; }
+.scheck.done { background: #c4a96a; border-color: #c4a96a; color: #fff; }
+.stxt { font-size: 14px; flex: 1; outline: none; border: none; background: transparent; font-family: inherit; }
+.stxt.done { text-decoration: line-through; color: #bbb; }
+
+/* Misc */
+.divider { height: 1px; background: #f0f0f0; margin: 14px 0; }
+.row { display: flex; gap: 8px; }
+.empty-state { text-align: center; padding: 40px 20px; color: #ccc; font-size: 14px; }
+.empty-state div { font-size: 32px; margin-bottom: 10px; }
+.form-label { font-size: 12px; color: #aaa; margin-bottom: 6px; font-weight: 500; }
+.section-sep { height: 1px; background: #f0f0f0; margin: 12px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- SIDEBAR (desktop only) -->
+  <div class="sidebar">
+    <div class="sidebar-logo">📓 Дневник</div>
+    <div class="sidebar-section">Ежедневное</div>
+    <div class="nav active" onclick="go('daily')" id="snav-daily"><span class="nav-icon">☀️</span> Дейлик</div>
+    <div class="nav" onclick="go('mood')" id="snav-mood"><span class="nav-icon">🌡</span> Настроение</div>
+    <div class="nav" onclick="go('habits')" id="snav-habits"><span class="nav-icon">🔥</span> Привычки <span class="nav-badge" id="b-habits">0</span></div>
+    <div class="sidebar-div"></div>
+    <div class="sidebar-section">Планы</div>
+    <div class="nav" onclick="go('goals')" id="snav-goals"><span class="nav-icon">🎯</span> Цели <span class="nav-badge" id="b-goals">0</span></div>
+    <div class="nav" onclick="go('lists')" id="snav-lists"><span class="nav-icon">☑️</span> Списки <span class="nav-badge" id="b-lists">0</span></div>
+    <div class="sidebar-div"></div>
+    <div class="sidebar-section">Заметки</div>
+    <div class="nav" onclick="go('notes')" id="snav-notes"><span class="nav-icon">✏️</span> Заметки <span class="nav-badge" id="b-notes">0</span></div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- DAILY -->
+    <div class="sec active" id="sec-daily">
+      <div class="topbar"><div class="topbar-title" id="daily-tb">Сегодня</div></div>
+      <div class="content">
+        <div class="daily-nav-row">
+          <button class="arr-btn" onclick="dShift(-1)">&#8249;</button>
+          <div class="daily-lbl" id="d-lbl"></div>
+          <button class="arr-btn" onclick="dShift(1)" id="d-next">&#8250;</button>
+        </div>
+        <div class="daily-date" id="d-date"></div>
+        <div class="daily-wd" id="d-wd"></div>
+        <textarea id="d-text" rows="8" placeholder="Как прошёл день? Мысли, события, планы..." oninput="saveDaily()"></textarea>
+        <div class="saved-lbl" id="d-saved"></div>
+      </div>
+    </div>
+
+    <!-- MOOD -->
+    <div class="sec" id="sec-mood">
+      <div class="topbar"><div class="topbar-title">Настроение</div></div>
+      <div class="content">
+        <div style="font-size:13px;color:#999;margin-bottom:10px;">Как себя чувствуешь?</div>
+        <div class="mood-grid" id="mood-picker"></div>
+        <textarea id="mood-note" rows="2" placeholder="Заметка (необязательно)..." style="margin-bottom:10px;"></textarea>
+        <button class="btn btn-dark" onclick="saveMood()" style="width:100%;">Сохранить</button>
+        <div class="divider"></div>
+        <div style="font-size:11px;color:#aaa;margin-bottom:8px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;">Последние 14 дней</div>
+        <div class="mood-cal" id="mood-cal"></div>
+        <div id="mood-hist"></div>
+      </div>
+    </div>
+
+    <!-- HABITS -->
+    <div class="sec" id="sec-habits">
+      <div class="topbar">
+        <div class="topbar-title">Привычки</div>
+        <button class="btn" onclick="toggleAddHabit()">+ Добавить</button>
+      </div>
+      <div class="content">
+        <div id="habits-list"></div>
+        <div class="add-form" id="habit-form" style="display:none;">
+          <div class="form-label">Иконка</div>
+          <div class="icon-grid" id="habit-icon-grid"></div>
+          <input type="text" id="habit-name" placeholder="Название привычки" style="margin-bottom:8px;">
+          <button class="btn btn-dark" onclick="addHabit()" style="width:100%;">Добавить</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GOALS -->
+    <div class="sec" id="sec-goals">
+      <div class="topbar">
+        <div class="topbar-title">Цели</div>
+        <button class="btn btn-dark" onclick="openNewGoal()">+ Новая</button>
+      </div>
+      <div class="content" id="goals-list"></div>
+    </div>
+
+    <!-- LISTS -->
+    <div class="sec" id="sec-lists">
+      <div class="topbar">
+        <div class="topbar-title" id="list-tb">Списки</div>
+        <button class="btn btn-dark" id="list-new-btn" onclick="openNewList()">+ Новый</button>
+        <button class="btn btn-red btn-sm" id="list-del-btn" style="display:none;" onclick="deleteList()">Удалить</button>
+        <button class="btn btn-sm" id="list-back-btn" style="display:none;" onclick="backToLists()">&#8592; Назад</button>
+      </div>
+      <div class="content">
+        <div id="lists-index">
+          <div class="list-grid" id="list-grid"></div>
+          <div class="empty-state" id="lists-empty" style="display:none;"><div>☑️</div>Нет списков</div>
+        </div>
+        <div id="list-detail" style="display:none;">
+          <div id="todo-items"></div>
+          <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f5f5f5;">
+            <div style="width:22px;height:22px;flex-shrink:0;"></div>
+            <input type="text" id="new-todo" placeholder="Добавить пункт..." style="border:none;background:transparent;padding:0;border-radius:0;font-size:15px;" onkeydown="addTodoKey(event)">
+          </div>
+          <div class="progbar"><div class="progfill" id="lprog" style="width:0%"></div></div>
+          <div class="proglbl" id="lprog-lbl"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- NOTES -->
+    <div class="sec" id="sec-notes">
+      <div class="topbar">
+        <div class="topbar-title" id="note-tb">Заметки</div>
+        <button class="btn btn-dark" id="note-new-btn" onclick="newNote()">+ Новая</button>
+        <button class="btn btn-red btn-sm" id="note-del-btn" style="display:none;" onclick="deleteNote()">Удалить</button>
+        <button class="btn btn-sm" id="note-back-btn" style="display:none;" onclick="backToNotes()">&#8592; Назад</button>
+      </div>
+      <div class="content">
+        <div id="notes-index">
+          <div id="notes-list-div"></div>
+          <div class="empty-state" id="notes-empty" style="display:none;"><div>✏️</div>Нет заметок</div>
+        </div>
+        <div id="note-editor" style="display:none;">
+          <input type="text" id="note-title" placeholder="Заголовок" style="font-size:18px;font-weight:600;margin-bottom:10px;background:transparent;border:none;padding:0;border-radius:0;" oninput="saveNote()">
+          <textarea id="note-body" rows="14" placeholder="Начни писать..." style="border:none;background:transparent;padding:0;border-radius:0;" oninput="saveNote()"></textarea>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- BOTTOM NAV (mobile only) -->
+  <nav class="bottom-nav">
+    <button class="bnav-btn active" onclick="go('daily')" id="bnav-daily"><div class="bnav-icon">☀️</div><div class="bnav-label">Дейлик</div></button>
+    <button class="bnav-btn" onclick="go('mood')" id="bnav-mood"><div class="bnav-icon">🌡</div><div class="bnav-label">Настрой</div></button>
+    <button class="bnav-btn" onclick="go('habits')" id="bnav-habits"><div class="bnav-icon">🔥</div><div class="bnav-label">Привычки</div></button>
+    <button class="bnav-btn" onclick="go('goals')" id="bnav-goals"><div class="bnav-icon">🎯</div><div class="bnav-label">Цели</div></button>
+    <button class="bnav-btn" onclick="go('lists')" id="bnav-lists"><div class="bnav-icon">☑️</div><div class="bnav-label">Списки</div></button>
+    <button class="bnav-btn" onclick="go('notes')" id="bnav-notes"><div class="bnav-icon">✏️</div><div class="bnav-label">Заметки</div></button>
+  </nav>
+
+</div><!-- /app -->
+
+<!-- GOAL DETAIL -->
+<div class="overlay" id="goal-overlay" onclick="closeGoalIfBg(event)">
+  <div class="panel">
+    <div class="panel-hdr">
+      <div id="goal-panel-icon" style="font-size:24px;flex-shrink:0;"></div>
+      <input class="panel-title-inp" id="goal-panel-title" placeholder="Цель" oninput="saveGoalTitle()">
+      <button class="btn btn-red btn-sm" onclick="deleteGoal()">Удалить</button>
+      <button class="btn btn-sm" onclick="closeGoal()">&#10005;</button>
+    </div>
+    <div class="gpbar"><div class="gpfill" id="goal-pfill" style="width:0%"></div></div>
+    <div class="proglbl" id="goal-plbl" style="margin-bottom:14px;"></div>
+    <div class="form-label">Шаги к цели</div>
+    <div id="goal-steps"></div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f0f0f0;margin-bottom:14px;">
+      <div style="width:20px;height:20px;flex-shrink:0;"></div>
+      <input type="text" id="new-step" placeholder="Добавить шаг..." style="border:none;background:transparent;padding:0;border-radius:0;" onkeydown="addStepKey(event)">
+    </div>
+    <div class="form-label">Заметки</div>
+    <textarea id="goal-note" rows="3" placeholder="Мотивация, детали..." oninput="saveGoalNote()"></textarea>
+  </div>
+</div>
+
+<!-- NEW GOAL -->
+<div class="overlay" id="new-goal-overlay" onclick="closeNGIfBg(event)">
+  <div class="panel" style="max-width:380px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:14px;">Новая цель</div>
+    <div class="form-label">Иконка</div>
+    <div class="icon-grid" id="goal-icon-grid" style="margin-bottom:12px;"></div>
+    <input type="text" id="ng-name" placeholder="Название цели" style="margin-bottom:8px;">
+    <input type="date" id="ng-deadline" style="margin-bottom:12px;">
+    <div class="row">
+      <button class="btn" style="flex:1;" onclick="document.getElementById('new-goal-overlay').classList.remove('open')">Отмена</button>
+      <button class="btn btn-dark" style="flex:1;" onclick="createGoal()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW LIST -->
+<div class="overlay" id="new-list-overlay" onclick="closeNLIfBg(event)">
+  <div class="panel" style="max-width:340px;">
+    <div style="font-size:16px;font-weight:600;margin-bottom:14px;">Новый список</div>
+    <input type="text" id="nl-name" placeholder="Название" style="margin-bottom:12px;">
+    <div class="row">
+      <button class="btn" style="flex:1;" onclick="document.getElementById('new-list-overlay').classList.remove('open')">Отмена</button>
+      <button class="btn btn-dark" style="flex:1;" onclick="createList()">Создать</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var STORE = 'diary_v4';
+var D = { daily:{}, mood:{}, habits:{}, goals:{}, lists:{}, notes:{} };
+var dOff=0, curList=null, curNote=null, curGoal=null;
+var selMood=null, selHIcon='💧', selGIcon='🎯';
+
+var DAYS_FULL=['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+var MONTHS=['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+var MS=['янв','фев','мар','апр','май','июн','июл','авг','сен','окт','ноя','дек'];
+var MOODS=[{e:'😁',l:'Отлично'},{e:'😊',l:'Хорошо'},{e:'😐',l:'Норм'},{e:'😔',l:'Плохо'},{e:'😢',l:'Грустно'},{e:'😤',l:'Злюсь'},{e:'😰',l:'Тревога'},{e:'🤩',l:'Восторг'},{e:'🥱',l:'Устал'},{e:'🔥',l:'Энергия'}];
+var HICONS=['💧','🏃','📚','🧘','💊','🥗','🛌','🎯','✍️','🎵','💪','🌱','🚫','🧹','🙏'];
+var GICONS=['🎯','🏆','💼','📚','💪','🌍','❤️','💰','🎨','🎓','🏠','✈️','🚀','🌱','⭐'];
+
+function sv(){ try{ localStorage.setItem(STORE,JSON.stringify(D)); }catch(e){} }
+function ld(){ try{ var d=localStorage.getItem(STORE); if(d){ var p=JSON.parse(d); for(var k in p) D[k]=p[k]; } }catch(e){} }
+function dk(o){ var d=new Date(); d.setDate(d.getDate()+(o||0)); return d.toISOString().slice(0,10); }
+function fe(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fDate(k){ var p=k.split('-'); return p[2]+' '+MONTHS[parseInt(p[1])-1]; }
+function fFull(k){ var p=k.split('-'); var d=new Date(+p[0],+p[1]-1,+p[2]); return DAYS_FULL[d.getDay()]+', '+p[2]+' '+MONTHS[+p[1]-1]; }
+
+var SCREENS=['daily','mood','habits','goals','lists','notes'];
+
+function updateBadges(){
+  document.getElementById('b-habits').textContent=Object.keys(D.habits).length;
+  document.getElementById('b-goals').textContent=Object.keys(D.goals).length;
+  document.getElementById('b-lists').textContent=Object.keys(D.lists).length;
+  document.getElementById('b-notes').textContent=Object.keys(D.notes).length;
+}
+
+function go(name){
+  for(var i=0;i<SCREENS.length;i++){
+    document.getElementById('sec-'+SCREENS[i]).classList.remove('active');
+    var sn=document.getElementById('snav-'+SCREENS[i]); if(sn) sn.classList.remove('active');
+    var bn=document.getElementById('bnav-'+SCREENS[i]); if(bn) bn.classList.remove('active');
+  }
+  document.getElementById('sec-'+name).classList.add('active');
+  var sn2=document.getElementById('snav-'+name); if(sn2) sn2.classList.add('active');
+  var bn2=document.getElementById('bnav-'+name); if(bn2) bn2.classList.add('active');
+  if(name==='daily') rDaily();
+  if(name==='mood') rMood();
+  if(name==='habits') rHabits();
+  if(name==='goals') rGoals();
+  if(name==='lists') rLists();
+  if(name==='notes') rNotes();
+  updateBadges();
+}
+
+// DAILY
+function rDaily(){
+  var k=dk(dOff),t=dk(0);
+  document.getElementById('d-date').textContent=fDate(k);
+  var s=fFull(k);
+  if(k===t) s='Сегодня · '+s;
+  else if(k===dk(-1)) s='Вчера · '+s;
+  document.getElementById('d-wd').textContent=s;
+  document.getElementById('d-lbl').textContent=k===t?'сегодня':fDate(k);
+  document.getElementById('daily-tb').textContent=k===t?'Сегодня':fDate(k);
+  document.getElementById('d-text').value=D.daily[k]||'';
+  document.getElementById('d-next').disabled=(dOff>=0);
+  document.getElementById('d-saved').textContent='';
+}
+function dShift(d){ if(dOff+d>0) return; dOff+=d; rDaily(); }
+var dstimer;
+function saveDaily(){
+  D.daily[dk(dOff)]=document.getElementById('d-text').value; sv();
+  document.getElementById('d-saved').textContent='✓ сохранено';
+  clearTimeout(dstimer); dstimer=setTimeout(function(){ document.getElementById('d-saved').textContent=''; },2000);
+}
+
+// MOOD
+function rMood(){
+  var today=D.mood[dk(0)];
+  selMood=today?today.emoji:null;
+  document.getElementById('mood-note').value=today?(today.note||''):'';
+  var html='';
+  for(var i=0;i<MOODS.length;i++){
+    var m=MOODS[i];
+    html+='<div class="mood-btn'+(selMood===m.e?' sel':'')+'" onclick="pickMood(\''+m.e+'\',this)">'+m.e+'<span>'+m.l+'</span></div>';
+  }
+  document.getElementById('mood-picker').innerHTML=html;
+  var cal='';
+  for(var i=13;i>=0;i--){ var k=dk(-i); var mo=D.mood[k]; cal+='<div class="mc">'+(mo?mo.emoji:'')+'</div>'; }
+  document.getElementById('mood-cal').innerHTML=cal;
+  var keys=Object.keys(D.mood).sort(function(a,b){ return b>a?1:-1; }).slice(0,8);
+  var hist='';
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i]; var m=D.mood[k];
+    hist+='<div class="mood-row"><div style="font-size:22px;">'+m.emoji+'</div><div><div style="font-size:12px;color:#aaa;">'+fDate(k)+'</div>'+(m.note?'<div style="font-size:14px;">'+fe(m.note)+'</div>':'')+'</div></div>';
+  }
+  document.getElementById('mood-hist').innerHTML=hist||'<div style="color:#ccc;font-size:13px;padding:10px 0;">Нет записей</div>';
+}
+function pickMood(e,el){
+  selMood=e;
+  var btns=document.querySelectorAll('.mood-btn');
+  for(var i=0;i<btns.length;i++) btns[i].classList.remove('sel');
+  el.classList.add('sel');
+}
+function saveMood(){
+  if(!selMood){ alert('Выбери настроение!'); return; }
+  D.mood[dk(0)]={ emoji:selMood, note:document.getElementById('mood-note').value, time:Date.now() };
+  sv(); rMood();
+}
+
+// HABITS
+function getStreak(h){
+  var s=0;
+  for(var i=0;i<365;i++){
+    if((h.log||{})[dk(-i)]) s++;
+    else if(i>0) break;
+  }
+  return s;
+}
+function rHabits(){
+  var ids=Object.keys(D.habits), today=dk(0), html='';
+  if(!ids.length){ html='<div class="empty-state"><div>🔥</div>Нет привычек</div>'; }
+  else {
+    for(var i=0;i<ids.length;i++){
+      var id=ids[i], h=D.habits[id], isDone=(h.log||{})[today];
+      var dots='';
+      for(var j=6;j>=0;j--) dots+='<span class="hdot '+((h.log||{})[dk(-j)]?'done':'')+'"></span>';
+      html+='<div class="habit-row">'
+        +'<div class="hcheck '+(isDone?'done':'')+'" onclick="toggleHabit(\''+id+'\')">'+(isDone?'✓':'')+'</div>'
+        +'<div class="hicon">'+h.icon+'</div>'
+        +'<div class="hinfo"><div class="hname '+(isDone?'done':'')+'">'+fe(h.name)+'</div>'
+        +'<div class="hstreak">'+getStreak(h)+' дней · <span class="hdots">'+dots+'</span></div></div>'
+        +'<div class="hdel" onclick="delHabit(\''+id+'\')">&#215;</div>'
+        +'</div>';
+    }
+  }
+  document.getElementById('habits-list').innerHTML=html;
+  updateBadges();
+}
+function toggleHabit(id){
+  if(!D.habits[id].log) D.habits[id].log={};
+  var k=dk(0); D.habits[id].log[k]=!D.habits[id].log[k]; sv(); rHabits();
+}
+function delHabit(id){ if(!confirm('Удалить?')) return; delete D.habits[id]; sv(); rHabits(); }
+function toggleAddHabit(){
+  var f=document.getElementById('habit-form');
+  f.style.display=f.style.display==='none'?'block':'none';
+  if(f.style.display==='block'){
+    var html='';
+    for(var i=0;i<HICONS.length;i++) html+='<div class="ipick '+(HICONS[i]===selHIcon?'sel':'')+'" onclick="pickHIcon(\''+HICONS[i]+'\',this)">'+HICONS[i]+'</div>';
+    document.getElementById('habit-icon-grid').innerHTML=html;
+  }
+}
+function pickHIcon(ic,el){ selHIcon=ic; var all=document.querySelectorAll('#habit-icon-grid .ipick'); for(var i=0;i<all.length;i++) all[i].classList.remove('sel'); el.classList.add('sel'); }
+function addHabit(){
+  var name=document.getElementById('habit-name').value.trim(); if(!name) return;
+  var id='h_'+Date.now();
+  D.habits[id]={ name:name, icon:selHIcon, log:{}, created:Date.now() }; sv();
+  document.getElementById('habit-name').value='';
+  document.getElementById('habit-form').style.display='none';
+  rHabits();
+}
+
+// GOALS
+function rGoals(){
+  var ids=Object.keys(D.goals), html='';
+  if(!ids.length){ html='<div class="empty-state"><div>🎯</div>Нет целей</div>'; }
+  else {
+    for(var i=0;i<ids.length;i++){
+      var id=ids[i], g=D.goals[id], steps=g.steps||[], dn=0;
+      for(var j=0;j<steps.length;j++) if(steps[j].done) dn++;
+      var pct=steps.length?Math.round(dn/steps.length*100):0;
+      html+='<div class="goal-card" onclick="openGoal(\''+id+'\')">'
+        +'<div class="goal-hdr"><div class="gicon">'+(g.icon||'🎯')+'</div>'
+        +'<div><div class="gtitle">'+fe(g.title)+'</div>'+(g.deadline?'<div class="gdeadline">до '+g.deadline+'</div>':'')+'</div></div>'
+        +'<div class="gpbar"><div class="gpfill" style="width:'+pct+'%"></div></div>'
+        +'<div class="gplabel">'+pct+'% · '+dn+'/'+steps.length+' шагов</div>'
+        +'</div>';
+    }
+  }
+  document.getElementById('goals-list').innerHTML=html;
+  updateBadges();
+}
+function openNewGoal(){
+  var html='';
+  for(var i=0;i<GICONS.length;i++) html+='<div class="ipick '+(GICONS[i]===selGIcon?'sel':'')+'" onclick="pickGIcon(\''+GICONS[i]+'\',this)">'+GICONS[i]+'</div>';
+  document.getElementById('goal-icon-grid').innerHTML=html;
+  document.getElementById('ng-name').value='';
+  document.getElementById('ng-deadline').value='';
+  document.getElementById('new-goal-overlay').classList.add('open');
+  setTimeout(function(){ document.getElementById('ng-name').focus(); },100);
+}
+function pickGIcon(ic,el){ selGIcon=ic; var all=document.querySelectorAll('#goal-icon-grid .ipick'); for(var i=0;i<all.length;i++) all[i].classList.remove('sel'); el.classList.add('sel'); }
+function createGoal(){
+  var name=document.getElementById('ng-name').value.trim(); if(!name) return;
+  var id='g_'+Date.now();
+  D.goals[id]={ title:name, icon:selGIcon, deadline:document.getElementById('ng-deadline').value, steps:[], note:'', created:Date.now() };
+  sv(); document.getElementById('new-goal-overlay').classList.remove('open'); rGoals(); openGoal(id);
+}
+function openGoal(id){
+  curGoal=id; var g=D.goals[id];
+  document.getElementById('goal-panel-icon').textContent=g.icon||'🎯';
+  document.getElementById('goal-panel-title').value=g.title;
+  document.getElementById('goal-note').value=g.note||'';
+  rGoalSteps();
+  document.getElementById('goal-overlay').classList.add('open');
+}
+function rGoalSteps(){
+  if(!curGoal) return;
+  var steps=D.goals[curGoal].steps||[], dn=0;
+  for(var i=0;i<steps.length;i++) if(steps[i].done) dn++;
+  var pct=steps.length?Math.round(dn/steps.length*100):0;
+  document.getElementById('goal-pfill').style.width=pct+'%';
+  document.getElementById('goal-plbl').textContent=steps.length?dn+' из '+steps.length+' выполнено':'';
+  var html='';
+  for(var i=0;i<steps.length;i++){
+    var s=steps[i];
+    html+='<div class="step-row">'
+      +'<div class="scheck '+(s.done?'done':'')+'" onclick="toggleStep('+i+')">'+(s.done?'✓':'')+'</div>'
+      +'<div class="stxt '+(s.done?'done':'')+'" contenteditable="true" onblur="editStep('+i+',this)">'+fe(s.text)+'</div>'
+      +'<div style="font-size:20px;color:#ddd;cursor:pointer;padding:2px 6px;" onclick="delStep('+i+')">&#215;</div>'
+      +'</div>';
+  }
+  document.getElementById('goal-steps').innerHTML=html;
+}
+function toggleStep(i){ D.goals[curGoal].steps[i].done=!D.goals[curGoal].steps[i].done; sv(); rGoalSteps(); }
+function editStep(i,el){ D.goals[curGoal].steps[i].text=el.innerText.trim(); sv(); }
+function delStep(i){ D.goals[curGoal].steps.splice(i,1); sv(); rGoalSteps(); }
+function addStepKey(e){ if(e.key==='Enter'){ var t=document.getElementById('new-step').value.trim(); if(!t) return; D.goals[curGoal].steps.push({text:t,done:false}); sv(); document.getElementById('new-step').value=''; rGoalSteps(); } }
+function saveGoalTitle(){ if(curGoal){ D.goals[curGoal].title=document.getElementById('goal-panel-title').value; sv(); } }
+function saveGoalNote(){ if(curGoal){ D.goals[curGoal].note=document.getElementById('goal-note').value; sv(); } }
+function closeGoal(){ document.getElementById('goal-overlay').classList.remove('open'); curGoal=null; rGoals(); }
+function closeGoalIfBg(e){ if(e.target.id==='goal-overlay') closeGoal(); }
+function closeNGIfBg(e){ if(e.target.id==='new-goal-overlay') document.getElementById('new-goal-overlay').classList.remove('open'); }
+function deleteGoal(){ if(!confirm('Удалить цель?')) return; delete D.goals[curGoal]; sv(); closeGoal(); }
+
+// LISTS
+function rLists(){
+  var ids=Object.keys(D.lists), html='';
+  document.getElementById('lists-empty').style.display=ids.length?'none':'block';
+  for(var i=0;i<ids.length;i++){
+    var id=ids[i], l=D.lists[id], dn=0, tot=(l.items||[]).length;
+    for(var j=0;j<tot;j++) if(l.items[j].done) dn++;
+    var prev='';
+    for(var j=0;j<Math.min(3,tot);j++) prev+=(l.items[j].done?'✓ ':'○ ')+fe(l.items[j].text)+'<br>';
+    html+='<div class="lcard" onclick="openList(\''+id+'\')">'
+      +'<div class="lcard-title">'+fe(l.title)+'</div>'
+      +'<div class="lcard-meta">'+dn+'/'+tot+' выполнено</div>'
+      +(tot?'<div class="lcard-preview">'+prev+'</div>':'')
+      +'</div>';
+  }
+  document.getElementById('list-grid').innerHTML=html;
+  updateBadges();
+}
+function openNewList(){
+  document.getElementById('nl-name').value='';
+  document.getElementById('new-list-overlay').classList.add('open');
+  setTimeout(function(){ document.getElementById('nl-name').focus(); },100);
+}
+function closeNLIfBg(e){ if(e.target.id==='new-list-overlay') document.getElementById('new-list-overlay').classList.remove('open'); }
+function createList(){
+  var name=document.getElementById('nl-name').value.trim()||'Список';
+  var id='l_'+Date.now();
+  D.lists[id]={ title:name, items:[], created:Date.now() }; sv();
+  document.getElementById('new-list-overlay').classList.remove('open');
+  rLists(); openList(id);
+}
+function openList(id){
+  curList=id;
+  document.getElementById('lists-index').style.display='none';
+  document.getElementById('list-detail').style.display='block';
+  document.getElementById('list-tb').textContent=D.lists[id].title;
+  document.getElementById('list-new-btn').style.display='none';
+  document.getElementById('list-del-btn').style.display='inline-flex';
+  document.getElementById('list-back-btn').style.display='inline-flex';
+  rTodos();
+}
+function backToLists(){
+  curList=null;
+  document.getElementById('lists-index').style.display='block';
+  document.getElementById('list-detail').style.display='none';
+  document.getElementById('list-tb').textContent='Списки';
+  document.getElementById('list-new-btn').style.display='inline-flex';
+  document.getElementById('list-del-btn').style.display='none';
+  document.getElementById('list-back-btn').style.display='none';
+  rLists();
+}
+function rTodos(){
+  if(!curList) return;
+  var items=D.lists[curList].items||[], dn=0;
+  for(var i=0;i<items.length;i++) if(items[i].done) dn++;
+  document.getElementById('lprog').style.width=items.length?(dn/items.length*100)+'%':'0%';
+  document.getElementById('lprog-lbl').textContent=items.length?dn+' из '+items.length+' выполнено':'';
+  var html='';
+  for(var i=0;i<items.length;i++){
+    html+='<div class="todo-row">'
+      +'<div class="tcb '+(items[i].done?'done':'')+'" onclick="toggleTodo('+i+')">'+(items[i].done?'✓':'')+'</div>'
+      +'<div class="ttxt '+(items[i].done?'done':'')+'" contenteditable="true" onblur="editTodo('+i+',this)">'+fe(items[i].text)+'</div>'
+      +'<div class="tdel" onclick="delTodo('+i+')">&#215;</div>'
+      +'</div>';
+  }
+  document.getElementById('todo-items').innerHTML=html;
+}
+function toggleTodo(i){ D.lists[curList].items[i].done=!D.lists[curList].items[i].done; sv(); rTodos(); }
+function editTodo(i,el){ D.lists[curList].items[i].text=el.innerText.trim(); sv(); }
+function delTodo(i){ D.lists[curList].items.splice(i,1); sv(); rTodos(); }
+function addTodoKey(e){ if(e.key==='Enter'){ var t=document.getElementById('new-todo').value.trim(); if(!t) return; D.lists[curList].items.push({text:t,done:false}); sv(); document.getElementById('new-todo').value=''; rTodos(); } }
+function deleteList(){ if(!confirm('Удалить список?')) return; delete D.lists[curList]; sv(); backToLists(); }
+
+// NOTES
+function rNotes(){
+  var ids=Object.keys(D.notes).sort(function(a,b){ return D.notes[b].updated-D.notes[a].updated; });
+  document.getElementById('notes-empty').style.display=ids.length?'none':'block';
+  var html='';
+  for(var i=0;i<ids.length;i++){
+    var id=ids[i], n=D.notes[id], d=new Date(n.updated);
+    html+='<div class="note-item" onclick="openNote(\''+id+'\')">'
+      +'<div class="ni-title">'+fe(n.title||'Без заголовка')+'</div>'
+      +'<div class="ni-preview">'+fe((n.body||'').slice(0,80).replace(/\n/g,' ')||'Пустая заметка')+'</div>'
+      +'<div class="ni-date">'+d.getDate()+' '+MS[d.getMonth()]+' '+d.getFullYear()+'</div>'
+      +'</div>';
+  }
+  document.getElementById('notes-list-div').innerHTML=html;
+  updateBadges();
+}
+function newNote(){
+  var id='n_'+Date.now();
+  D.notes[id]={ title:'', body:'', updated:Date.now() }; sv(); openNote(id);
+}
+function openNote(id){
+  curNote=id;
+  document.getElementById('notes-index').style.display='none';
+  document.getElementById('note-editor').style.display='block';
+  document.getElementById('note-tb').textContent=D.notes[id].title||'Заметка';
+  document.getElementById('note-new-btn').style.display='none';
+  document.getElementById('note-del-btn').style.display='inline-flex';
+  document.getElementById('note-back-btn').style.display='inline-flex';
+  document.getElementById('note-title').value=D.notes[id].title;
+  document.getElementById('note-body').value=D.notes[id].body;
+}
+function backToNotes(){
+  if(curNote&&D.notes[curNote]&&!D.notes[curNote].title&&!D.notes[curNote].body){ delete D.notes[curNote]; sv(); }
+  curNote=null;
+  document.getElementById('notes-index').style.display='block';
+  document.getElementById('note-editor').style.display='none';
+  document.getElementById('note-tb').textContent='Заметки';
+  document.getElementById('note-new-btn').style.display='inline-flex';
+  document.getElementById('note-del-btn').style.display='none';
+  document.getElementById('note-back-btn').style.display='none';
+  rNotes();
+}
+var nstimer;
+function saveNote(){
+  if(!curNote) return;
+  D.notes[curNote].title=document.getElementById('note-title').value;
+  D.notes[curNote].body=document.getElementById('note-body').value;
+  D.notes[curNote].updated=Date.now();
+  document.getElementById('note-tb').textContent=D.notes[curNote].title||'Заметка';
+  clearTimeout(nstimer); nstimer=setTimeout(sv,400);
+}
+function deleteNote(){ if(!confirm('Удалить заметку?')) return; delete D.notes[curNote]; sv(); backToNotes(); }
+
+ld(); rDaily(); updateBadges();
+</script>
+</body>
+</html>
